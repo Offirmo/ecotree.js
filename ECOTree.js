@@ -370,10 +370,20 @@ ECOTree.SL_NONE = 2;
 
 
 ECOTree._getAutoRenderMode = function() {
-	var r = "VML";
-	var is_ie6 = /msie 6\.0/i.test(navigator.userAgent);
-	var is_ff = /Firefox/i.test(navigator.userAgent);
-	if (is_ff) r = "CANVAS";
+
+	// hat tip http://stackoverflow.com/a/2746983/587407
+	var isCanvasSupported = function(){
+		var elem = document.createElement('canvas');
+		return !!(elem.getContext && elem.getContext('2d'));
+	};
+
+	// Canvas is better supported than VML when available, even on IE !
+	// cf. http://www.codeproject.com/Messages/4440810/Re-Problem-with-IE-9.aspx
+	var r = "CANVAS";
+	if(! isCanvasSupported() )
+	{
+		r = "VML";
+	}
 	return r;
 };
 
