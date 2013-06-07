@@ -20,12 +20,32 @@
  |     References:
  |
  |     Walker II, J. Q., "A Node-Positioning Algorithm for General Trees"
- |	     			   Software � Practice and Experience 10, 1980 553-561.
+ |	     			   Software - Practice and Experience 10, 1980 553-561.
  |                      (Obtained from C++ User's journal. Feb. 1991)
+ |
+ |
+ |     Last updated: June 21, 2010, Bob Good
+ |     Version: 1.5 - Couple of more Firefox issues with text offset
+ |
+ |     Last updated: June 21, 2010, Bob Good
+ |     Version: 1.4 - fixed some FireFox issues
+ |
+ |     Last updated: June 4, 2010, Bob Good
+ |     Version: 1.3 - fixed color problem caused by "change all" ECOlor => eColor
+ |
+ |     Last updated: May 11, 2010, Bob Good
+ |     Version: 1.2 - added thirdwalk correction factors because was drawing nodes off the screen
  |
  |     Last updated: October 26th, 2006
  |     Version: 1.0
  \------------------------------------------------------------------------------------------*/
+
+var __isIE = navigator.appVersion.match(/MSIE/);
+var __userAgent = navigator.userAgent;
+var __isFireFox = __userAgent.match(/firefox/i);
+var __isFireFoxOld = __isFireFox &&
+	(__userAgent.match(/firefox\/2./i) || __userAgent.match(/firefox\/1./i));
+var __isFireFoxNew = __isFireFox && !__isFireFoxOld;
 
 ECONode = function (id, pid, dsc, w, h, c, bc, target, meta) {
 	this.id = id;
@@ -289,6 +309,8 @@ ECOTree = function (obj, elm) {
 		iSubtreeSeparation : 80,
 		iRootOrientation : ECOTree.RO_TOP,
 		iNodeJustification : ECOTree.NJ_TOP,
+		topXCorrection : 0,
+		topYCorrection : 0,
 		topXAdjustment : 0,
 		topYAdjustment : 0,
 		render : "AUTO",
@@ -312,7 +334,7 @@ ECOTree = function (obj, elm) {
 		transImage : './img/trans.gif'
 	};
 
-	this.version = "1.1";
+	this.version = "1.5";
 	this.obj = obj;
 	this.elm = document.getElementById(elm);
 	this.self = this;
@@ -510,6 +532,7 @@ ECOTree._secondWalk = function (tree, node, level, X, Y) {
 		var yTmp = tree.rootYOffset + Y;
 		var maxsizeTmp = 0;
 		var nodesizeTmp = 0;
+		var corrTmp = 0;
 		var flag = false;
 
 		switch(tree.config.iRootOrientation)
@@ -565,8 +588,46 @@ ECOTree._secondWalk = function (tree, node, level, X, Y) {
 		var rightSibling = node._getRightSibling();
 		if(rightSibling != null)
 			ECOTree._secondWalk(tree, rightSibling, level, X, Y);
+
+		// adjust for large tree, where "left:' offset has gone negative (off the screen)
+		if (node.XPosition < 0)
+		{
+			corrTmp = 0 - node.XPosition;
+			if (corrTmp >  tree.config.topXCorrection)
+			{
+				tree.config.topXCorrection = corrTmp ;
+			}
+		}
+
+		// adjust for large tree, where "top:' offset has gone negative (off the screen)
+		if (node.YPosition < 0)
+		{
+			corrTmp = 0 - node.YPosition;
+			if (corrTmp >  tree.config.topYCorrection)
+			{
+				tree.config.topYCorrection = corrTmp ;
+			}
+		}
+
 	}
 };
+
+
+ECOTree._thirdWalk = function (tree, node, level) {
+	if(level <= tree.config.iMaxDepth)
+	{
+		node.XPosition = node.XPosition + tree.config.topXCorrection;
+		node.YPosition = node.YPosition + tree.config.topYCorrection;
+
+		if(node._getChildrenCount() != 0)
+			ECOTree._thirdWalk(tree, node._getFirstChild(), level + 1);
+
+		var rightSibling = node._getRightSibling();
+		if(rightSibling != null)
+			ECOTree._thirdWalk(tree, rightSibling, level);
+	}
+};
+
 
 ECOTree.prototype._positionTree = function () {
 	this.maxLevelHeight = [];
@@ -588,7 +649,17 @@ ECOTree.prototype._positionTree = function () {
 			this.rootYOffset = this.config.topYAdjustment + this.root.YPosition;
 	}
 
+	this.config.topXCorrection = 0;
+	this.config.topYCorrection = 0;
+
 	ECOTree._secondWalk(this.self, this.root, 0, 0, 0);
+
+	// Adjust for very large trees off of the screen
+	if (   (this.config.topXCorrection > 0)
+		|| (this.config.topYCorrection > 0))
+	{
+		ECOTree._thirdWalk(this.self, this.root, 0);
+	}
 };
 
 ECOTree.prototype._setLevelHeight = function (node, level) {
@@ -798,7 +869,9 @@ ECOTree.prototype.toString = function () {
 	switch (this.render)
 	{
 		case "CANVAS":
-			s.push('<canvas id="ECOTreecanvas" width=2000 height=2000></canvas>');
+			s.push('<div class="maindiv">');
+			s.push('<canvas id="ECOTreecanvas" width=2000 height=7000></canvas>');
+			s.push('</div>');
 			break;
 
 		case "HTML":
@@ -808,7 +881,7 @@ ECOTree.prototype.toString = function () {
 			break;
 
 		case "VML":
-			s.push('<v:group coordsize="10000, 10000" coordorigin="0, 0" style="position:absolute;width=10000px;height=10000px;" >');
+			s.push('<v:group coordsize="20000, 20000" coordorigin="0, 0" style="position:absolute;width=20000px;height=20000px;" >');
 			s.push(this._drawTree());
 			s.push('</v:group>');
 			break;
@@ -824,8 +897,9 @@ ECOTree.prototype.UpdateTree = function () {
 	if (this.render == "CANVAS") {
 		var canvas = document.getElementById("ECOTreecanvas");
 		if (canvas && canvas.getContext)  {
-			this.canvasoffsetLeft = canvas.offsetLeft;
-			this.canvasoffsetTop = canvas.offsetTop;
+			var canvasAbsoluteOffset = getElementAbsolutePos(canvas);
+			this.canvasoffsetLeft = canvas.offsetLeft + canvasAbsoluteOffset.x;
+			this.canvasoffsetTop = canvas.offsetTop + canvasAbsoluteOffset.y;
 			this.ctx = canvas.getContext('2d');
 			var h = this._drawTree();
 			var r = this.elm.ownerDocument.createRange();
@@ -970,4 +1044,98 @@ ECOTree.prototype.getSelectedNodes = function () {
 		}
 	}
 	return selection;
+};
+
+function __parseBorderWidth(width) {
+	var res = 0;
+	if (typeof (width) == "string" && width != null
+		&& width != "") {
+		var p = width.indexOf("px");
+		if (p >= 0) {
+			res = parseInt(width.substring(0, p));
+		}
+		else {
+			//do not know how to calculate other
+			//values (such as 0.5em or 0.1cm) correctly now
+			//so just set the width to 1 pixel
+			res = 1;
+		}
+	}
+	return res;
+};
+
+//returns border width for some element
+function __getBorderWidth(element) {
+	var res = new Object();
+	res.left = 0; res.top = 0; res.right = 0; res.bottom = 0;
+	if (window.getComputedStyle) {
+		//for Firefox
+		var elStyle = window.getComputedStyle(element, null);
+		res.left = parseInt(elStyle.borderLeftWidth.slice(0, -2));
+		res.top = parseInt(elStyle.borderTopWidth.slice(0, -2));
+		res.right = parseInt(elStyle.borderRightWidth.slice(0, -2));
+		res.bottom = parseInt(elStyle.borderBottomWidth.slice(0, -2));
+	}
+	else {
+		//for other browsers
+		res.left = __parseBorderWidth(element.style.borderLeftWidth);
+		res.top = __parseBorderWidth(element.style.borderTopWidth);
+		res.right = __parseBorderWidth(element.style.borderRightWidth);
+		res.bottom = __parseBorderWidth(element.style.borderBottomWidth);
+	}
+
+	return res;
+};
+
+//returns absolute position of some element within document
+function getElementAbsolutePos(element) {
+	var res = new Object();
+	res.x = 0; res.y = 0;
+	if (element !== null) {
+		res.x = element.offsetLeft;
+		res.y = element.offsetTop;
+
+		var offsetParent = element.offsetParent;
+		var parentNode = element.parentNode;
+		var borderWidth = null;
+
+		while (offsetParent != null) {
+			res.x += offsetParent.offsetLeft;
+			res.y += offsetParent.offsetTop;
+
+			var parentTagName = offsetParent.tagName.toLowerCase();
+
+			if ((__isIE && parentTagName != "table") ||
+				(__isFireFoxNew && parentTagName == "td")) {
+				borderWidth = __getBorderWidth(offsetParent);
+				res.x += borderWidth.left;
+				res.y += borderWidth.top;
+			}
+
+			if (offsetParent != document.body &&
+				offsetParent != document.documentElement) {
+				res.x -= offsetParent.scrollLeft;
+				res.y -= offsetParent.scrollTop;
+			}
+
+			//next lines are necessary to support FireFox problem with offsetParent
+			if (!__isIE) {
+				while (offsetParent != parentNode && parentNode !== null) {
+					res.x -= parentNode.scrollLeft;
+					res.y -= parentNode.scrollTop;
+
+					if (__isFireFoxOld) {
+						borderWidth = __getBorderWidth(parentNode);
+						res.x += borderWidth.left;
+						res.y += borderWidth.top;
+					}
+					parentNode = parentNode.parentNode;
+				}
+			}
+
+			parentNode = offsetParent.parentNode;
+			offsetParent = offsetParent.offsetParent;
+		}
+	}
+	return res;
 };
