@@ -77,31 +77,23 @@ ECONode = function (id, pid, dsc, w, h, c, bc, target, meta) {
 };
 
 ECONode.prototype._getLevel = function () {
-	if (this.nodeParent.id == -1) {
-		return 0;
-	}
+	if (this.nodeParent.id == -1) { return 0; }
 	else return this.nodeParent._getLevel() + 1;
 };
 
 ECONode.prototype._isAncestorCollapsed = function () {
-	if (this.nodeParent.isCollapsed) {
-		return true;
-	}
-	else {
-		if (this.nodeParent.id == -1) {
-			return false;
-		}
-		else {
-			return this.nodeParent._isAncestorCollapsed();
-		}
+	if (this.nodeParent.isCollapsed) { return true; }
+	else
+	{
+		if (this.nodeParent.id == -1) { return false; }
+		else { return this.nodeParent._isAncestorCollapsed(); }
 	}
 };
 
 ECONode.prototype._setAncestorsExpanded = function () {
-	if (this.nodeParent.id == -1) {
-		return;
-	}
-	else {
+	if (this.nodeParent.id == -1) { return; }
+	else
+	{
 		this.nodeParent.isCollapsed = false;
 		return this.nodeParent._setAncestorsExpanded();
 	}
@@ -660,6 +652,7 @@ ECOTree.prototype._positionTree = function () {
 	{
 		ECOTree._thirdWalk(this.self, this.root, 0);
 	}
+
 };
 
 ECOTree.prototype._setLevelHeight = function (node, level) {
@@ -752,8 +745,7 @@ ECOTree.prototype._drawTree = function () {
 	var color = "";
 	var border = "";
 
-	for (var n = 0; n < this.nDatabaseNodes.length; n++)
-	{
+	for (var n = 0; n < this.nDatabaseNodes.length; n++) {
 		node = this.nDatabaseNodes[n];
 
 		switch (this.config.colorStyle) {
@@ -769,10 +761,8 @@ ECOTree.prototype._drawTree = function () {
 				break;
 		}
 
-		if (!node._isAncestorCollapsed())
-		{
-			switch (this.render)
-			{
+		if (!node._isAncestorCollapsed()) {
+			switch (this.render) {
 				case "CANVAS":
 					//Canvas part...
 					this.ctx.save();
@@ -794,7 +784,7 @@ ECOTree.prototype._drawTree = function () {
 					this.ctx.restore();
 
 					//HTML part...
-					s.push('<div id="' + node.id + '" class="econode" style="top:'+(node.YPosition+this.canvasoffsetTop)+'; left:'+(node.XPosition+this.canvasoffsetLeft)+'; width:'+node.w+'; height:'+node.h+';" ');
+					s.push('<div id="' + node.id + '" class="econode" style="position:absolute; top:' + (node.YPosition + this.canvasoffsetTop) + 'px; left:' + (node.XPosition + this.canvasoffsetLeft) + 'px; width:' + node.w + '; height:' + node.h + ';" ');
 					if (this.config.selectMode != ECOTree.SL_NONE)
 						s.push('onclick="javascript:ECOTree._canvasNodeClickHandler('+this.obj+',event.target.id,\''+node.id+'\');" ');
 					s.push('>');
@@ -805,14 +795,12 @@ ECOTree.prototype._drawTree = function () {
 						s.push('</a>');
 						s.push('<img src="'+this.config.transImage+'" >');
 					}
-					if (node.target && this.config.useTarget)
-					{
+					if (node.target && this.config.useTarget) {
 						s.push('<a id="t' + node.id + '" href="'+node.target+'">');
 						s.push(node.dsc);
 						s.push('</a>');
 					}
-					else
-					{
+					else {
 						s.push(node.dsc);
 					}
 					s.push('</font>');
@@ -832,14 +820,12 @@ ECOTree.prototype._drawTree = function () {
 						s.push('</a>');
 						s.push('<img src="'+this.config.transImage+'" >');
 					}
-					if (node.target && this.config.useTarget)
-					{
+					if (node.target && this.config.useTarget) {
 						s.push('<a href="'+node.target+'">');
 						s.push(node.dsc);
 						s.push('</a>');
 					}
-					else
-					{
+					else {
 						s.push(node.dsc);
 					}
 					s.push('</font></v:textbox>');
